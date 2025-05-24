@@ -1,0 +1,33 @@
+{
+  "name": "pottmayer-kai-migrations",
+  "version": "1.0.0",
+  "description": "Database migrations tool.",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc"
+  },
+  "bin": {
+    "kai": "./dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/leonardopottmayer/pottmayer-kai-migrations.git"
+  },
+  "author": "Leonardo Gian Pottmayer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/leonardopottmayer/pottmayer-kai-migrations/issues"
+  },
+  "homepage": "https://github.com/leonardopottmayer/pottmayer-kai-migrations#readme",
+  "dependencies": {
+    "commander": "^14.0.0",
+    "dotenv": "^16.5.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.21",
+    "@types/pg": "^8.15.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}
