@@ -15,11 +15,13 @@ migrations/
 
 ## ⚙️ How It Works
 
-Each kai command (kai create, kai apply, etc.) operates in the migrations/ folder of the current working directory.
+Each ```kai``` command (```kai create```, ```kai apply```, etc.) operates in the ```migrations/``` folder of the current working directory.
 
-A migrations table is created in the PostgreSQL database to track applied, rolled back, or failed migrations.
+A ```migrations``` table is created in the PostgreSQL database to track applied, rolled back, or failed migrations.
 
-All migrations are executed directly via SQL — no transpilation or code compilation is involved.
+All migrations are executed directly via ```.sql``` files — no transpilation or code compilation is involved.
+
+The database configuration is defined in a ```config.json``` file with named environments (e.g., ```dev```, ```prod```).
 
 ## 🚀 Installation
 
@@ -45,16 +47,20 @@ npm link
 
 ## 🧪 Using Kai in a migrations project
 
-### 1. Create working folder and ```.env``` file
+### 1. Create working folder and ```config.json``` file
 
 ```
-mkdir my-migrations-project
-cd my-migrations-project
-echo PG_HOST=localhost >> .env
-echo PG_PORT=5432 >> .env
-echo PG_USER=your_db_user >> .env
-echo PG_PASSWORD=your_password >> .env
-echo PG_DATABASE=your_database_name >> .env
+{
+  "environments": {
+    "dev": {
+      "host": "localhost",
+      "port": 5432,
+      "user": "your_db_user",
+      "password": "your_password",
+      "database": "your_database_name"
+    }
+  }
+}
 ```
 
 ### 2. Create the migrations directory
@@ -76,27 +82,27 @@ Creates a new folder with ```up.sql``` and ```down.sql``` files prefixed with a 
 ### ✅ Apply pending migrations
 
 ```
-kai apply
+kai apply <env>
 ```
 
-Applies all pending migrations. If any of them fail, none will be applied (all-or-nothing).
+Applies all pending migrations for the specified environment (e.g., ```kai apply dev```). If any of them fail, none will be applied (all-or-nothing).
 
 ### ↩️ Rollback migrations
 
 ```
-kai rollback
+kai rollback <env>
 ```
 
 OR
 
 ```
-kai rollback <migration_id>
+kai rollback <env> <migration_id>
 ```
 
 ### 📋 Show migration status
 
 ```
-kai status
+kai status <env>
 ```
 
 Displays the status of the latest 5 batches:
@@ -111,15 +117,15 @@ Displays the status of the latest 5 batches:
 
 ## 🌐 Environment Variables (.env)
 
-| Variable     | Description                |
-| ------------ | -------------------------- |
-| PG\_HOST     | PostgreSQL server hostname |
-| PG\_PORT     | PostgreSQL server port     |
-| PG\_USER     | Database username          |
-| PG\_PASSWORD | Database password          |
-| PG\_DATABASE | Target database name       |
+| Field    | Description                |
+| -------- | -------------------------- |
+| host     | PostgreSQL server hostname |
+| port     | PostgreSQL server port     |
+| user     | Database username          |
+| password | Database password          |
+| database | Target database name       |
 
-The ```.env``` file must exist in the directory where you run the kai command.
+The ```config.json``` file must exist in the directory where you run the kai command.
 
 ## 🧹 Unlink global CLI (optional)
 

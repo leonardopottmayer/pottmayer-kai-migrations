@@ -1,8 +1,7 @@
-const { getClient } = require("../db");
-const fs = require("fs");
+import { getClient } from "../db";
 
-export async function showMigrationStatus() {
-  const client = getClient();
+export async function showMigrationStatus(envName: string) {
+  const client = getClient(envName);
   await client.connect();
 
   const batchesRes = await client.query(`

@@ -25,12 +25,14 @@ program
 // kai apply
 program
   .command("apply")
+  .argument("<env>", "Environment name from config.json.")
   .description("✅ Applies all pending migrations.")
   .action(applyMigrations);
 
 // kai rollback [migration_id]
 program
   .command("rollback")
+  .argument("<env>", "Environment name.")
   .argument("[migration_id]", "Migration ID to rollback from.")
   .description(
     "↩️ Undo the last applied batch or all batches after a migration_id."
@@ -40,6 +42,7 @@ program
 // kai status
 program
   .command("status")
+  .argument("<env>", "Environment name.")
   .description("📋 Shows migrations status from last 5 batches.")
   .action(showMigrationStatus);
 

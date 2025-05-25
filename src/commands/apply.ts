@@ -2,7 +2,7 @@ const { getClient } = require("../db");
 const fs = require("fs");
 const path = require("path");
 
-export async function applyMigrations() {
+export async function applyMigrations(envName: string) {
   const migrationsDir = path.join(process.cwd(), "migrations");
   const folders = fs.readdirSync(migrationsDir).sort();
 
@@ -25,7 +25,7 @@ export async function applyMigrations() {
     return;
   }
 
-  const client = getClient();
+  const client = getClient(envName);
   await client.connect();
 
   const { rows: batchRows } = await client.query(

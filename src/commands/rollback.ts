@@ -1,9 +1,12 @@
-const { getClient } = require("../db");
+import { getClient } from "../db";
 const fs = require("fs");
 const path = require("path");
 
-export async function rollbackMigrations(targetMigrationId?: string) {
-  const client = getClient();
+export async function rollbackMigrations(
+  envName: string,
+  targetMigrationId?: string
+) {
+  const client = getClient(envName);
   await client.connect();
 
   const batchQuery = targetMigrationId

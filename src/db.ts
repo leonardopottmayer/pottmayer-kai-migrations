@@ -1,24 +1,32 @@
 import { Client } from "pg";
-import { join } from "path";
-import * as dotenv from "dotenv";
+const fs = require("fs");
+const path = require("path");
 
-dotenv.config({ path: join(process.cwd(), ".env") });
+export function getClient(environment: string): Client {
+  const configPath = path.join(process.cwd(), "config.json");
 
-export function getClient() {
-  console.log({ path: join(process.cwd(), ".env") });
-  const { PG_HOST, PG_PORT, PG_USER, PG_PASSWORD, PG_DATABASE } = process.env;
-
-  if (!PG_HOST || !PG_PORT || !PG_USER || !PG_PASSWORD || !PG_DATABASE) {
-    console.error("❌ Environment variables are not defined correctly.");
+  if (!fs.existsSync(configPath)) {
+    console.error("❌ config.json not found in current directory.");
     process.exit(1);
   }
 
+  const raw = fs.readFileSync(configPath, "utf8");
+  const parsed = JSON.parse(raw);
+  const envConfig = parsed.environments?.[environment];
+
+  if (!envConfig) {
+    console.error(`❌ Environment '${environment}' not found in config.json.`);
+    process.exit(1);
+  }
+
+  const { host, port, user, password, database } = envConfig;
+
   return new Client({
-    host: PG_HOST,
-    port: parseInt(PG_PORT),
-    user: PG_USER,
-    password: PG_PASSWORD,
-    database: PG_DATABASE,
-    application_name: "kai-cli",
+    host,
+    port,
+    user,
+    password,
+    database,
+    application_name: `kai-cli-${environment}`,
   });
 }
