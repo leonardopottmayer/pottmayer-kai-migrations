@@ -1,82 +1,119 @@
-import { getClient } from "../db";
-const fs = require("fs");
-const path = require("path");
+import fs from "fs";
+import path from "path";
+import { createConnectedClient } from "../db";
+import { log } from "../logger";
+import { confirm } from "../prompt";
+import { KaiError } from "../errors";
+
+export interface RollbackOptions {
+  dryRun?: boolean;
+  yes?: boolean;
+}
 
 export async function rollbackMigrations(
   envName: string,
-  targetMigrationId?: string
-) {
-  const client = getClient(envName);
-  await client.connect();
+  targetMigrationId?: string,
+  options: RollbackOptions = {}
+): Promise<void> {
+  const { dryRun = false, yes = false } = options;
 
-  const batchQuery = targetMigrationId
-    ? `
-      SELECT application_batch_id FROM migrations
-      WHERE migration_id = $1
-    `
-    : `
-      SELECT MAX(application_batch_id) AS application_batch_id
-      FROM migrations
-      WHERE status = 'A'
-    `;
-
-  const batchResult = targetMigrationId
-    ? await client.query(batchQuery, [targetMigrationId])
-    : await client.query(batchQuery);
-
-  const batchId = batchResult.rows[0]?.application_batch_id;
-  if (!batchId) {
-    console.log("🚫 No batch to rollback.");
-    await client.end();
-    return;
+  let client;
+  try {
+    client = await createConnectedClient(envName);
+  } catch (err: any) {
+    throw new KaiError(`Could not connect to database: ${err.message}`);
   }
 
-  const migrationResult = await client.query(
-    `SELECT migration_id FROM migrations
-     WHERE application_batch_id >= $1 AND status = 'A'
-     ORDER BY application_batch_id DESC, migration_id DESC`,
-    [batchId]
-  );
+  try {
+    // Find the batch to roll back.
+    let batchId: number | undefined;
 
-  const migrations = migrationResult.rows.map((r) => r.migration_id);
+    if (targetMigrationId) {
+      const { rows } = await client.query<{ application_batch_id: number }>(
+        `SELECT application_batch_id FROM migrations WHERE migration_id = $1`,
+        [targetMigrationId]
+      );
+      batchId = rows[0]?.application_batch_id;
+      if (!batchId) {
+        throw new KaiError(`Migration "${targetMigrationId}" not found or has no batch assigned.`);
+      }
+    } else {
+      const { rows } = await client.query<{ application_batch_id: number }>(
+        `SELECT MAX(application_batch_id) AS application_batch_id
+         FROM migrations WHERE status = 'A'`
+      );
+      batchId = rows[0]?.application_batch_id;
+    }
 
-  for (const migrationId of migrations) {
-    const downPath = path.join(
-      "migrations",
-      migrationId,
-      `${migrationId}.down.sql`
+    if (!batchId) {
+      log.info("No applied migrations to roll back.");
+      return;
+    }
+
+    // All applied migrations from this batch onward, in reverse order.
+    const { rows: migrationRows } = await client.query<{ migration_id: string }>(
+      `SELECT migration_id FROM migrations
+       WHERE application_batch_id >= $1 AND status = 'A'
+       ORDER BY application_batch_id DESC, migration_id DESC`,
+      [batchId]
     );
 
-    if (!fs.existsSync(downPath)) {
-      console.error(`❌ down.sql file not found for ${migrationId}`);
-      continue;
+    const migrations = migrationRows.map((r) => r.migration_id);
+
+    if (migrations.length === 0) {
+      log.info("No applied migrations to roll back.");
+      return;
     }
 
-    const downSql = fs.readFileSync(downPath, "utf8");
-
-    try {
-      await client.query("BEGIN");
-      await client.query(downSql);
-      await client.query(
-        `UPDATE migrations
-         SET status = 'R', updated_at = NOW()
-         WHERE migration_id = $1`,
-        [migrationId]
-      );
-      await client.query("COMMIT");
-      console.log(`↩️ Rollback: ${migrationId}`);
-    } catch (err: any) {
-      await client.query("ROLLBACK");
-      await client.query(
-        `UPDATE migrations
-         SET status = 'E'
-         WHERE migration_id = $1`,
-        [migrationId]
-      );
-      console.error(`❌ Failed to rollback ${migrationId}:`, err.message);
-      break;
+    if (dryRun) {
+      log.info(`Dry run — ${migrations.length} migration(s) would be rolled back:`);
+      migrations.forEach((m) => process.stdout.write(`    - ${m}\n`));
+      return;
     }
+
+    if (!yes) {
+      const ok = await confirm(`${migrations.length} migration(s) will be rolled back. Continue?`);
+      if (!ok) {
+        log.info("Aborted.");
+        return;
+      }
+    }
+
+    for (const migrationId of migrations) {
+      const downPath = path.join(
+        process.cwd(),
+        "migrations",
+        migrationId,
+        `${migrationId}.down.sql`
+      );
+
+      if (!fs.existsSync(downPath)) {
+        log.error(`down.sql not found for ${migrationId}`);
+        throw new KaiError(`Rollback stopped: missing down.sql for ${migrationId}.`);
+      }
+
+      const downSql = fs.readFileSync(downPath, "utf8");
+
+      try {
+        await client.query("BEGIN");
+        await client.query(downSql);
+        await client.query(
+          `UPDATE migrations SET status = 'R', updated_at = NOW() WHERE migration_id = $1`,
+          [migrationId]
+        );
+        await client.query("COMMIT");
+        log.success(`Rolled back: ${migrationId}`);
+      } catch (err: any) {
+        await client.query("ROLLBACK");
+        await client.query(
+          `UPDATE migrations SET status = 'E', updated_at = NOW() WHERE migration_id = $1`,
+          [migrationId]
+        );
+        log.error(`Failed to roll back ${migrationId}: ${err.message}`);
+        throw new KaiError(`Rollback stopped due to error in ${migrationId}.`);
+      }
+    }
+  } finally {
+    await client.end();
   }
-
-  await client.end();
 }

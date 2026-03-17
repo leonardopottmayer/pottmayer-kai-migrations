@@ -1,14 +1,21 @@
 {
-  "name": "pottmayer-kai-migrations",
+  "name": "kai-migrations",
   "version": "1.0.0",
-  "description": "Database migrations tool.",
+  "description": "CLI tool for managing PostgreSQL database migrations using plain SQL files.",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc"
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build && npm test"
   },
   "bin": {
     "kai": "./dist/index.js"
   },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/leonardopottmayer/pottmayer-kai-migrations.git"
@@ -21,13 +28,13 @@
   "homepage": "https://github.com/leonardopottmayer/pottmayer-kai-migrations#readme",
   "dependencies": {
     "commander": "^14.0.0",
-    "dotenv": "^16.5.0",
     "pg": "^8.16.0"
   },
   "devDependencies": {
     "@types/node": "^22.15.21",
     "@types/pg": "^8.15.2",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^2.0.0"
   }
 }

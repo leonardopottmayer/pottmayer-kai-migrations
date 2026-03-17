@@ -1,32 +1,22 @@
 import { Client } from "pg";
-const fs = require("fs");
-const path = require("path");
+import { loadConfig } from "./config";
 
-export function getClient(environment: string): Client {
-  const configPath = path.join(process.cwd(), "config.json");
+/**
+ * Creates and connects a PostgreSQL client for the given environment.
+ * Throws KaiError if config is missing or connection fails.
+ */
+export async function createConnectedClient(environment: string): Promise<Client> {
+  const config = loadConfig(environment);
 
-  if (!fs.existsSync(configPath)) {
-    console.error("❌ config.json not found in current directory.");
-    process.exit(1);
-  }
-
-  const raw = fs.readFileSync(configPath, "utf8");
-  const parsed = JSON.parse(raw);
-  const envConfig = parsed.environments?.[environment];
-
-  if (!envConfig) {
-    console.error(`❌ Environment '${environment}' not found in config.json.`);
-    process.exit(1);
-  }
-
-  const { host, port, user, password, database } = envConfig;
-
-  return new Client({
-    host,
-    port,
-    user,
-    password,
-    database,
+  const client = new Client({
+    host: config.host,
+    port: config.port,
+    user: config.user,
+    password: config.password,
+    database: config.database,
     application_name: `kai-cli-${environment}`,
   });
+
+  await client.connect();
+  return client;
 }
